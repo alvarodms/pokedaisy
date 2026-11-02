@@ -163,6 +163,8 @@ object ShinyOdds {
         val shinyBits: Int = -1,
         val shinyBitsMask: Int = 0,
         val shinyBitSet: Int = 0,
+        /** The in-battle bit of the byte at [inBattle] ([NativeConfig.inBattleMask]). */
+        val inBattleMask: Int = 0x02,
     )
 
     /**
@@ -175,6 +177,8 @@ object ShinyOdds {
         cfg ?: return null
         val l = cfg.partyMonLayout
         if (l.size != cfg.monStride) return null
+        // Monomyth's records use a key of its own: rewriting one with vanilla's would break the wild Pokémon.
+        if (l.monomythKey) return null
         val enemy = cfg.enemyParty.takeIf { it != 0L } ?: if (fireRedFamily) cfg.playerParty - PARTY_SIZE * MON_STRUCT_SIZE else return null
         // Every layout but vanilla's 100 bytes is plaintext (SoulGold, Quetzal, R.O.W.E.'s and Elite Redux's packed ones).
         val plain = plaintext || l.size != MON_STRUCT_SIZE || l.rowe || l.eliteRedux
@@ -190,6 +194,7 @@ object ShinyOdds {
             eggIvWord = if (l.eggInIvWord) l.plainBox + 0x28 else -1, shinyModifier = l.shinyModifier,
             // The lower of the bits: bit 26 of +0x14 in Elite Redux.
             shinyBits = l.shinyBits, shinyBitsMask = l.shinyBitsMask, shinyBitSet = l.shinyBitsMask and -l.shinyBitsMask,
+            inBattleMask = cfg.inBattleMask,
         )
     }
 
@@ -316,7 +321,7 @@ object ShinyOdds {
                 seen[slot] = key
                 val chance = rerollChance(odds, target.shinyBelow)
                 if (chance <= 0.0) continue
-                if (read(target.inBattle, 1)[0].toInt() and 2 != 0) continue
+                if (read(target.inBattle, 1)[0].toInt() and target.inBattleMask != 0) continue
                 val save2 = if (target.saveBlock2Static) target.saveBlock2Ptr else u32(read(target.saveBlock2Ptr, 4), 0)
                 if (!inRam(save2)) continue
                 val playerOt = u32(read(save2 + target.trainerIdOff, 4), 0)

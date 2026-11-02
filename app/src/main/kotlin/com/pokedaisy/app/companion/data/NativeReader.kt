@@ -145,6 +145,12 @@ data class NativeConfig(
     // gMain.inBattle's byte (bit 1): FireRed/Emerald's struct Main has it at
     // +0x439, Ruby/Sapphire's (4 bytes more before it) at +0x43D.
     val inBattleOff: Long = 0x439,
+    // gMain.vblankCounter2 (the telemetry's frame counter): +0x24 in FireRed / Emerald. Pokémon Monomyth's struct Main has
+    // no intrCheck, so both counters and everything after them sit 4 bytes earlier (+0x20, inBattle +0x435).
+    val vblankCounterOff: Long = 0x24,
+    // The in-battle bit of the byte at gMain + [inBattleOff]: vanilla's inBattle is bit 1. Monomyth keeps its own flag
+    // word elsewhere ([inBattleOff] reaches it from gMain), bit 6.
+    val inBattleMask: Int = 0x02,
     // Where the save keeps the TRAINER CARD's data (TrainerCard.kt); null = no
     // CARD tab. Retail FireRed / LeafGreen / Emerald only:
     // the hacks below copy these configs and their saves differ.
@@ -182,7 +188,7 @@ data class NativeConfig(
     val monLayout: PartyMonLayout
         get() = if (shinyBelow > 0 && partyMonLayout.shinyBelow == 0) partyMonLayout.copy(shinyBelow = shinyBelow) else partyMonLayout
     val gMainInBattle get() = gMain + inBattleOff
-    val gMainVblankCtr get() = gMain + 0x24
+    val gMainVblankCtr get() = gMain + vblankCounterOff
     val iconTables get() = IconTables(
         monIconTable, monIconPaletteTable, monIconPaletteIndices, itemIconTable,
         monIconStride, monPalIdxStride, monPalIdxMask, itemIconStride, itemPalCompressed,
@@ -273,6 +279,14 @@ val TEAM_ROCKET_BAG_POCKET_ORDER = listOf(
  * and Battle Items fold into the app's ITEMS, like the other hacks' extra pockets. */
 val DREAMSTONE_BAG_POCKET_ORDER = listOf(
     POCKET_ITEMS, POCKET_ITEMS, POCKET_ITEMS, POCKET_POKE_BALLS, POCKET_BERRIES, POCKET_TM_HM, POCKET_KEY_ITEMS,
+)
+
+/** Pokémon Monomyth's gBagPockets: eight, the first seven in its items' own pocket numbers (gItems +0xF >> 3: 1 Items,
+ * 2 Medicine, 3 Poké Balls, 4 held items, 5 TMs / HMs, 6 Berries, 7 Key Items - their capacities 50 / 50 / 50 / 50 / 59 /
+ * 61 / 40 fit each pocket's item count), the eighth (30 slots) holding none of its items. Medicine and held items fold
+ * into the app's ITEMS, like the other hacks' extra pockets. */
+val MONOMYTH_BAG_POCKET_ORDER = listOf(
+    POCKET_ITEMS, POCKET_ITEMS, POCKET_POKE_BALLS, POCKET_ITEMS, POCKET_TM_HM, POCKET_BERRIES, POCKET_KEY_ITEMS, POCKET_ITEMS,
 )
 
 // The game's notes: [config.recharged_yellow_v1_8_0] in gamedata/gen3/hacks/recharged_yellow.toml.
@@ -405,7 +419,7 @@ fun readNativeTelemetry(client: MemoryReader, cfg: NativeConfig): Telemetry {
     }
 
     // --- battle --- (.inBattle is bit 1 of the byte at gMain+0x439)
-    val inBattle = runCatching { (client.readCoreMemory(cfg.gMainInBattle, 1)[0].toInt() and 0x02) != 0 }
+    val inBattle = runCatching { (client.readCoreMemory(cfg.gMainInBattle, 1)[0].toInt() and cfg.inBattleMask) != 0 }
         .getOrDefault(false)
     var isDouble = false
     var isTrainer = false
@@ -721,6 +735,7 @@ private fun Mon.withNativeGender(raw: ByteArray, off: Int, layout: PartyMonLayou
         GameKind.TEAM_ROCKET -> genderRatiosTeamRocket
         GameKind.WISHES -> genderRatiosWishes
         GameKind.DREAMSTONE -> genderRatiosDreamstone
+        GameKind.MONOMYTH -> genderRatiosMonomyth
         else -> return this
     }
     // BoxPokemon +0x13 flags byte (isBadEgg:1, hasSpecies:1, isEgg:1): an egg
@@ -795,7 +810,7 @@ private var lastLoggedFn0 = -1L
  */
 fun readNativeBattleInputFast(client: MemoryReader, cfg: NativeConfig): Pair<Int, Int>? {
     if (!cfg.hasBattleInputAddrs) return null
-    val inBattle = runCatching { (client.readCoreMemory(cfg.gMainInBattle, 1)[0].toInt() and 0x02) != 0 }
+    val inBattle = runCatching { (client.readCoreMemory(cfg.gMainInBattle, 1)[0].toInt() and cfg.inBattleMask) != 0 }
         .getOrDefault(false)
     if (!inBattle) return 0 to BATTLE_INPUT_NONE
     val thumbMask = 0xFFFFFFFEL

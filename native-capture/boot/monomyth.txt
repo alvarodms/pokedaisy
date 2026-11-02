@@ -1,0 +1,9 @@
+# Pokémon Monomyth v1.0: its boot screens (version, website notice, "Speed Up" splash, intro) take ~1200 frames;
+# START on the title, A on CONTINUE (a second A for the save's window), then the field: Chamomile Town's Pokémon Center.
+wait 1200
+press START
+wait 100
+press A
+wait 100
+press A
+wait 400

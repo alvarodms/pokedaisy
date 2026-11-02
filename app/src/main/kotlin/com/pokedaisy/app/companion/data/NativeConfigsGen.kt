@@ -3753,6 +3753,66 @@ val NATIVE_MARIOMON_V1_2_1 = NATIVE_MARIOMON_V1_2_2.copy(
     guideTables = GUIDE_TABLES_MARIOMON_V1_2_1,
 )
 
+// ---- gamedata/gen3/hacks/monomyth.toml ----
+
+// Pokémon Monomyth v1.0 (Team Monomyth; game code MONE, 32 MB, sha1 ae1c4be9…): the Chamomile region on an Emerald engine
+// of its own, no public source. Mapped from the ROM and headless dumps of the developer's own save (a new game: MISHIMIZU
+// Lv5 and a Potion, in Chamomile Town's Pokémon Center), each global checked by the ROM's literal-pool references to it.
+// - gPlayerParty 0x02025908 (779 refs) / gPlayerPartyCount 0x02025905 (39), gEnemyParty 0x02025B60 (318): vanilla's
+// 100-byte struct Pokemon and substruct order, but the 48 bytes XOR a key of its own mixed from the personality and OT ID
+// (MONOMYTH_PARTY_MON: its encrypt / decrypt routines at 0x08056C60 / 0x08056D0C).
+// - gSaveBlock1Ptr / 2Ptr 0x03001240 / 0x03001244 (936 / 703 refs). SaveBlock2 keeps vanilla's name / gender / trainer ID /
+// play time, the encryption key at +0x40; SaveBlock1's party copy is at +0x23C (vanilla's +0x238), money +0x494 (XOR the
+// key: ₽3000 on the new game), the bag right after (+0x49C). The save file has 4 more bytes in front of each block.
+// - gMain 0x02020618 in EWRAM (callback1 / callback2 at +0 / +4; the code reaches it from 0x02020600, 725 refs): no
+// intrCheck, so vblankCounter1 / 2 are +0x1C / +0x20 (both moved 381 in 381 frames), the OAM buffer from +0x24. It has
+// no inBattle bit of vanilla's: the battle is bit 6 of 0x020214D3 (the word at 0x020214D0, 1584 refs), clear on the
+// field, set through a scripted wild battle's intro and action menu, clear again once it was run from (inBattleOff
+// reaches it from gMain: 0x020214D3 - 0x02020618).
+// - gMapHeader 0x02038210 (206 refs; mapsec byte +0x14: 0 = Chamomile Town indoors and out, mapType 8 in the Pokémon
+// Center, 1 in town), gObjectEvents 0x02038280 (414 refs; the player first, currentCoords +0x10 moved as it walked).
+// - gBagPockets 0x0203C18C: eight {ItemSlot *, capacity} ([MONOMYTH_BAG_POCKET_ORDER]); quantities XOR the key's low half
+// (the save's Potion x1 in the second pocket).
+// - gItemIconTable 0x08AAFA00: vanilla's {LZ77 tiles, LZ77 palette} pairs, 448 (item 32 POTION, 329 BICYCLE drawn right).
+// Its party icons are stored another way (not raw tiles, not vanilla's table): none yet.
+// - No battle globals mapped yet: the battle reads stay off (battleMons 0) rather than read retail Emerald's addresses.
+// Names / types / moves / chart / map sections: scripts/gen_monomyth_tables.py (MonomythGen.kt).
+val NATIVE_MONOMYTH = NATIVE_EMERALD.copy(
+    // gItems: 32-byte records, the description pointer at +8 (the name last, at +0x12).
+    itemDescs = ItemDescTable(0x089F15C0L, 32, 8, count = 447),
+    playerParty = 0x02025908L,
+    playerPartyCount = 0x02025905L,
+    enemyParty = 0x02025B60L,
+    partyMonLayout = MONOMYTH_PARTY_MON,
+    gMain = 0x02020618L,
+    inBattleOff = 0xEBBL,
+    inBattleMask = 0x40,
+    vblankCounterOff = 0x20L,
+    saveBlock1Ptr = 0x03001240L,
+    saveBlock2Ptr = 0x03001244L,
+    encryptionKeyOff = 0x40L,
+    moneyOff = 0x494L,
+    objectEvents = 0x02038280L,
+    mapHeader = 0x02038210L,
+    bagPockets = 0x0203C18CL,
+    bagPocketCount = 8,
+    bagPocketOrder = MONOMYTH_BAG_POCKET_ORDER,
+    battleMons = 0,
+    battlerPositions = 0,
+    battlersCount = 0,
+    battleTypeFlags = 0,
+    battlerControllerFuncs = 0,
+    handleInputChooseAction = 0,
+    handleInputChooseMove = 0,
+    completeWhenChoseItem = 0,
+    waitForMonSelection = 0,
+    handleInputChooseTarget = 0,
+    monIconTable = 0,
+    monIconPaletteIndices = 0,
+    monIconPaletteTable = 0,
+    itemIconTable = 0x08AAFA00L,
+)
+
 // ---- gamedata/gen3/hacks/odyssey.toml ----
 
 // Pokemon Odyssey (English) v4.1.1 - a 32 MB BPRE hack like the others above.

@@ -367,6 +367,20 @@ kotlin = 'Long'
 type = 'long'
 default = 0x439
 
+# gMain.vblankCounter2 (the telemetry's frame counter): +0x24 in FireRed / Emerald. Pokémon Monomyth's struct Main has
+# no intrCheck, so both counters and everything after them sit 4 bytes earlier (+0x20, inBattle +0x435).
+[field.vblankCounterOff]
+kotlin = 'Long'
+type = 'long'
+default = 0x24
+
+# The in-battle bit of the byte at gMain + [inBattleOff]: vanilla's inBattle is bit 1. Monomyth keeps its own flag
+# word elsewhere ([inBattleOff] reaches it from gMain), bit 6.
+[field.inBattleMask]
+kotlin = 'Int'
+type = 'int'
+default = 0x02
+
 # Where the save keeps the TRAINER CARD's data (TrainerCard.kt); null = no
 # CARD tab. Retail FireRed / LeafGreen / Emerald only:
 # the hacks below copy these configs and their saves differ.

@@ -1,0 +1,20 @@
+# Pokémon Monomyth v1.0: a scripted wild battle from the save's field (monomyth.txt first). Its setwildbattle (0xB6)
+# takes species u16, level u8, item u16, a byte and a word (10 bytes); dowildbattle is 0xB7, end 0x02. The script goes
+# into unused EWRAM and runs through ScriptContext_SetupScript (0x08090870, Thumb).
+poke8 0x0203FF00 0xB6
+poke8 0x0203FF01 0xC2
+poke8 0x0203FF02 0x00
+poke8 0x0203FF03 0x03
+poke8 0x0203FF04 0x00
+poke8 0x0203FF05 0x00
+poke8 0x0203FF06 0x00
+poke8 0x0203FF07 0x00
+poke8 0x0203FF08 0x00
+poke8 0x0203FF09 0x00
+poke8 0x0203FF0A 0x00
+poke8 0x0203FF0B 0xB7
+poke8 0x0203FF0C 0x02
+call 0x08090871 0x0203FF00
+wait 860
+press A
+wait 200

@@ -1933,7 +1933,7 @@ class PokeDaisyActivity : Activity() {
                 }
                 // SMART FF reads the game's own gMain once the game is known (no scan
                 // guesswork), and learns the field's main callback from the player moving.
-                telemetry.knownGMain()?.let { (addr, inBattleOff) -> FfMenuWatch.useKnownGMain(addr, inBattleOff) }
+                telemetry.knownGMain()?.let { (addr, inBattleOff, mask) -> FfMenuWatch.useKnownGMain(addr, inBattleOff, mask) }
                 if (snap.connected) FfMenuWatch.notePosition(snap.x, snap.y, snap.mapGroup, snap.mapNum, snap.inBattle)
                 if (snap.connected) battleSwitchAddrs = switchAddrsFor(snap.game)
                 // SHINY ODDS: the foe party of a game it knows (retail FireRed / Emerald), handed to the engine.
