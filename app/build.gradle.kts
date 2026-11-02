@@ -50,6 +50,14 @@ fun screenScraperSecret(prop: String, env: String): String =
 fun featureFlag(name: String): Boolean =
     (findProperty("pokedaisy.$name") ?: localProps?.getProperty("pokedaisy.$name"))?.toString()?.trim()?.toBoolean() == true
 
+// A debug build that installs beside another PokeDaisy (a release, or another debug build signed with a different key):
+// `-Ppokedaisy.idSuffix=.monomyth` (or the key in local.properties) gives it its own application id, and
+// `pokedaisy.label` its own name in the launcher (default "PokeDaisy" + the suffix's word). Unset: the usual app.
+fun buildProp(name: String): String? =
+    (findProperty("pokedaisy.$name") ?: localProps?.getProperty("pokedaisy.$name"))?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+val debugIdSuffix = buildProp("idSuffix")?.let { if (it.startsWith(".")) it else ".$it" }
+val debugLabel = buildProp("label") ?: debugIdSuffix?.let { "PokeDaisy " + it.removePrefix(".").replaceFirstChar(Char::uppercase) }
+
 android {
     namespace = "com.pokedaisy.app"
     compileSdk = 34
@@ -113,7 +121,15 @@ android {
         }
     }
 
+    defaultConfig.manifestPlaceholders["appLabel"] = "@string/app_name"
+
     buildTypes {
+        debug {
+            if (debugIdSuffix != null) {
+                applicationIdSuffix = debugIdSuffix
+                manifestPlaceholders["appLabel"] = debugLabel!!
+            }
+        }
         release {
             isMinifyEnabled = false
             if (keystoreProps != null) signingConfig = signingConfigs.getByName("release")
