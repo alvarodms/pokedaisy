@@ -35,6 +35,7 @@ object FfMenuWatch {
     /** The detected game's own gMain, once known ([useKnownGMain]); scanning stops then. */
     private var knownGMain = -1L
     private var inBattleOff = 0x439L
+    private var inBattleMask = 0x02
     private var verifyFrame = 0
     private var verifyPrimed = false
     private var verifyC1 = 0L
@@ -60,6 +61,7 @@ object FfMenuWatch {
         verifyPrimed = false
         // Ruby/Sapphire's Main has 4 more bytes - but not the Japanese ones' (their Main is FireRed's size).
         inBattleOff = if ((gameCode.startsWith("AXV") || gameCode.startsWith("AXP")) && !gameCode.endsWith("J")) 0x43DL else 0x439L
+        inBattleMask = 0x02
         frame = 0
         snapshot = null
         scans = 0
@@ -80,10 +82,11 @@ object FfMenuWatch {
      * wrong, so what was learned through it goes too.
      */
     @Synchronized
-    fun useKnownGMain(addr: Long, inBattleOffset: Long) {
+    fun useKnownGMain(addr: Long, inBattleOffset: Long, inBattleBits: Int = 0x02) {
         if (addr == knownGMain || addr <= 0L || knownGMain == Long.MIN_VALUE) return
         knownGMain = addr
         inBattleOff = inBattleOffset
+        inBattleMask = inBattleBits
         if (gMain >= 0 && gMain != addr) forgetLearned()
         gMain = addr
         verifyFrame = 0
@@ -112,7 +115,7 @@ object FfMenuWatch {
         if (!stillGMain(r)) return false
         val b = runCatching { r.readCoreMemory(gMain + 4, 4) }.getOrNull() ?: return false
         cb2 = Gfx.u32(b, 0)
-        inBattle = runCatching { (r.readCoreMemory(gMain + inBattleOff, 1)[0].toInt() shr 1) and 1 == 1 }.getOrDefault(false)
+        inBattle = runCatching { r.readCoreMemory(gMain + inBattleOff, 1)[0].toInt() and inBattleMask != 0 }.getOrDefault(false)
         if (inBattle && Gfx.inRom(cb2)) {
             val n = (battleFrames[cb2] ?: 0) + 1
             battleFrames[cb2] = n

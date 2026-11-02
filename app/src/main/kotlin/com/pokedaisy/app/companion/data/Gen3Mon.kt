@@ -90,9 +90,28 @@ data class PartyMonLayout(
      * the star by the name). -1 = none. */
     val shinyBits: Int = -1,
     val shinyBitsMask: Int = 0,
+    /** Pokémon Monomyth's substruct key ([monomythBoxKey]) in place of vanilla's personality ^ otId. */
+    val monomythKey: Boolean = false,
 )
 
 val VANILLA_PARTY_MON = PartyMonLayout()
+
+/**
+ * Pokémon Monomyth v1.0's struct Pokemon: vanilla's 100 bytes and substruct order, but the 48 bytes are XORed with a
+ * key mixed from the personality and OT ID ([monomythBoxKey]) - its encrypt / decrypt routines at 0x08056C60 /
+ * 0x08056D0C, checked on the save's party and its copy in SaveBlock1 (the checksum matches).
+ */
+val MONOMYTH_PARTY_MON = PartyMonLayout(monomythKey = true)
+
+/** Monomyth's substruct key: rotations of the personality and OT ID with two constants, as 0x08056C60 computes it. */
+internal fun monomythBoxKey(personality: Long, otId: Long): Long {
+    fun ror(x: Long, r: Int): Long = ((x ushr r) or (x shl (32 - r))) and 0xFFFFFFFFL
+    var k = (otId + ror(0x690L xor personality, 7)) and 0xFFFFFFFFL
+    k = (k + ror(personality, 11)) and 0xFFFFFFFFL
+    val m = (0x5A000000L xor otId) xor ror(k, 13)
+    k = (personality + ror(m, 17)) and 0xFFFFFFFFL
+    return k xor ror(otId, 5)
+}
 
 /**
  * R.O.W.E. v2.x's 0x4C-byte struct Pokemon: plaintext and bit-packed, no substructs, checksum or
@@ -223,7 +242,7 @@ fun decodePartyMon(raw: ByteArray, off: Int, layout: PartyMonLayout = VANILLA_PA
     val evs: List<Int>
     val ivWord: Long
 
-    val dec = decryptGen3Substructs(raw, off)
+    val dec = decryptGen3Substructs(raw, off, layout.monomythKey)
     if (dec != null) {
         species = dec.species
         heldItem = dec.heldItem
@@ -307,11 +326,11 @@ private class Gen3Substructs(
     val evs: List<Int>, val ivWord: Long, val heldItem: Int,
 )
 
-private fun decryptGen3Substructs(raw: ByteArray, off: Int): Gen3Substructs? {
+private fun decryptGen3Substructs(raw: ByteArray, off: Int, monomythKey: Boolean = false): Gen3Substructs? {
     val personality = u32(raw, off + 0)
     val otId = u32(raw, off + 4)
     val storedChecksum = u16(raw, off + 28)
-    val key = personality xor otId
+    val key = if (monomythKey) monomythBoxKey(personality, otId) else personality xor otId
 
     val block = ByteArray(48)
     var sum = 0
